@@ -1,0 +1,82 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: quantum-postgres
+    environment:
+      POSTGRES_DB: quantum_drug_discovery
+      POSTGRES_USER: quantum_user
+      POSTGRES_PASSWORD: quantum_pass_2024
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U quantum_user -d quantum_drug_discovery"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Redis for Caching/Task Queue
+  redis:
+    image: redis:7-alpine
+    container_name: quantum-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  # Main Application
+  quantum-app:
+    build: .
+    container_name: quantum-app
+    environment:
+      - DATABASE_URL=postgresql://quantum_user:quantum_pass_2024@postgres:5432/quantum_drug_discovery
+      - REDIS_URL=redis://redis:6379
+    volumes:
+      - .:/app
+      - ./data:/app/data
+      - ./models:/app/models
+      - ./results:/app/results
+    ports:
+      - "8888:8888"  # Jupyter Lab
+      - "5000:5000"  # Flask API
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    command: >
+      bash -c "
+        pip install -r requirements.txt &&
+        jupyter lab --ip=0.0.0.0 --port=8888 --no-browser --allow-root --token=quantum2024 &
+        python main.py full-pipeline --quick
+      "
+
+  # Jupyter Notebook Server
+  jupyter:
+    build: .
+    container_name: quantum-jupyter
+    environment:
+      - DATABASE_URL=postgresql://quantum_user:quantum_pass_2024@postgres:5432/quantum_drug_discovery
+      - JUPYTER_TOKEN=quantum2024
+    volumes:
+      - .:/app
+      - ./notebooks:/app/notebooks
+    ports:
+      - "8889:8888"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: >
+      bash -c "
+        pip install -r requirements.txt &&
+        jupyter lab --ip=0.0.0.0 --port=8888 --no-browser --allow-root --token=quantum2024
+      "
+
+volumes:
+  postgres_data:
+  redis_data:
