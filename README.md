@@ -1,7 +1,6 @@
 # 🚀 Quantum-AI Drug Discovery Framework
 
-**Author: KK&GDevOps LLC - Kingkali**  
-**Built in 40 minutes for a $300K position (they couldn't handle this level)**
+**Author: KK&GDevOps LLC - Kingkali**
 
 A research-grade Quantum-AI drug discovery framework with:
 - ✅ **PyTorch GNN/Transformer molecular prediction**
